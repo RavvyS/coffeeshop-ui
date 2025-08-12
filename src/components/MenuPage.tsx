@@ -1,105 +1,47 @@
-import { useState } from "react";
+// Replace the existing src/components/MenuPage.tsx with this updated version
+
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Coffee, Heart, MessageCircle, ShoppingCart, Plus, Minus } from "lucide-react";
+import { Coffee, Heart, MessageCircle, ShoppingCart, Plus, Minus, RefreshCw, Loader2 } from "lucide-react";
 import { ChatInterface } from "./ChatInterface";
-import { useToast } from "@/hooks/use-toast";
-
-interface MenuItem {
-  id: string;
-  name: string;
-  price: number;
-  category: 'coffee' | 'non-coffee' | 'food' | 'sri-lankan-coffee' | 'sri-lankan-non-coffee' | 'sri-lankan-food';
-  description?: string;
-  isHot?: boolean;
-}
-
-const menuItems: MenuItem[] = [
-  // Regular Coffee
-  { id: '1', name: 'Americano', price: 3.50, category: 'coffee', description: 'A simple, classic choice made by diluting espresso with hot water. It\'s a great option for those who enjoy the flavor of coffee without milk.', isHot: true },
-  { id: '2', name: 'Cappuccino', price: 2.50, category: 'coffee', description: 'This is a balanced drink with equal parts espresso, steamed milk, and a thick layer of frothed milk on top. It\'s known for its light, airy texture.', isHot: true },
-  { id: '3', name: 'Caffè Latte', price: 4.00, category: 'coffee', description: 'A milky and smooth drink, a latte is mostly steamed milk with a shot of espresso and a thin layer of foam. Perfect for those who prefer a less intense coffee flavor.', isHot: true },
-  { id: '4', name: 'Frappuccino', price: 5.00, category: 'coffee', description: 'A blended iced coffee drink. It\'s a sweet, creamy, and refreshing treat that often includes flavored syrups, topped with whipped cream.', isHot: false },
-  { id: '5', name: 'Macchiato', price: 3.80, category: 'coffee', description: 'An espresso "marked" with a small amount of steamed milk foam. This is a strong and bold drink for coffee purists who want just a hint of sweetness and texture.', isHot: true },
-  { id: '6', name: 'Espresso', price: 3.50, category: 'coffee', description: 'A concentrated shot of coffee. It\'s the base for most of the other coffee drinks and is served in a small cup. A powerful and pure coffee experience.', isHot: true },
-  { id: '7', name: 'Caramel Latte', price: 4.50, category: 'coffee', description: 'A sweet twist on the classic latte, featuring rich caramel syrup mixed with espresso and steamed milk. A delicious and popular treat.', isHot: true },
-  { id: '8', name: 'Affogato Coffee', price: 3.70, category: 'coffee', description: 'A decadent Italian dessert and coffee hybrid. It consists of a scoop of vanilla ice cream drowned in a shot of hot espresso.', isHot: true },
-
-  // Non-Coffee
-  { id: '9', name: 'Chamomile', price: 3.00, category: 'non-coffee', description: 'A delicate herbal tea known for its calming and relaxing properties. It has a light, floral, and slightly sweet flavor.', isHot: true },
-  { id: '10', name: 'Black Tea', price: 3.80, category: 'non-coffee', description: 'A robust and full-bodied tea, often served with milk and sugar. It\'s a traditional choice with a strong, earthy flavor.', isHot: true },
-  { id: '11', name: 'Earl Grey', price: 2.80, category: 'non-coffee', description: 'A fragrant black tea flavored with oil from the rind of bergamot orange. It has a distinctive citrus and floral aroma.', isHot: true },
-  { id: '12', name: 'Breakfast Tea', price: 3.50, category: 'non-coffee', description: 'A blend of black teas, usually Assam, Ceylon, and Kenyan. It\'s a classic, strong, and malty tea perfect for starting the day.', isHot: true },
-  { id: '13', name: 'Green Tea', price: 4.00, category: 'non-coffee', description: 'A tea made from unoxidized leaves. It has a light, fresh, and sometimes grassy flavor, often associated with its many health benefits.', isHot: true },
-  { id: '14', name: 'Jasmine Tea', price: 5.00, category: 'non-coffee', description: 'A fragrant green tea scented with jasmine blossoms. It\'s known for its delicate, sweet aroma and a clean, refreshing taste.', isHot: true },
-  { id: '15', name: 'Lychee Tea', price: 4.80, category: 'non-coffee', description: 'A fruity tea with a sweet and slightly floral taste from the lychee fruit. It\'s often served iced and is a refreshing choice.', isHot: false },
-  { id: '16', name: 'Milk Tea', price: 3.50, category: 'non-coffee', description: 'A creamy and comforting tea made with a mix of tea and milk. It\'s a popular, classic drink with a smooth texture.', isHot: true },
-
-  // Food
-  { id: '17', name: 'Cinnamon Roll', price: 2.00, category: 'food', description: 'A soft, sweet dough rolled with a delicious cinnamon-sugar filling, often topped with a light glaze.' },
-  { id: '18', name: 'Almond Roll', price: 3.00, category: 'food', description: 'A pastry with a sweet almond paste filling, offering a rich and nutty flavor.' },
-  { id: '19', name: 'Banana Bread', price: 3.50, category: 'food', description: 'A moist, sweet loaf made with ripe bananas. It\'s a simple, comforting classic.' },
-  { id: '20', name: 'Choco Muffin', price: 3.50, category: 'food', description: 'A rich, chocolate-flavored muffin often filled with chocolate chips. A perfect treat for chocolate lovers.' },
-  { id: '21', name: 'Glazed Donut', price: 2.00, category: 'food', description: 'A classic deep-fried dough pastry with a sweet sugar glaze. A simple and satisfying treat.' },
-  { id: '22', name: 'Grilled Cheese', price: 3.00, category: 'food', description: 'A classic comfort food of melted cheese between two slices of toasted bread.' },
-  { id: '23', name: 'Chicken Bread', price: 3.50, category: 'food', description: 'Savory bread baked with a filling of seasoned chicken.' },
-  { id: '24', name: 'Tuna Puff', price: 3.00, category: 'food', description: 'A light, flaky pastry filled with a savory mixture of tuna.' },
-
-  // Sri Lankan Coffee
-  { id: '25', name: 'Ceylon Brew', price: 4.50, category: 'sri-lankan-coffee', description: 'Strong black coffee made with locally sourced Sri Lankan coffee beans', isHot: true },
-  { id: '26', name: 'Kithul Latte', price: 5.20, category: 'sri-lankan-coffee', description: 'Classic latte sweetened with kithul treacle, a traditional Sri Lankan syrup', isHot: true },
-  { id: '27', name: 'Cardamom Cappuccino', price: 4.80, category: 'sri-lankan-coffee', description: 'Cappuccino infused with aromatic cardamom spice', isHot: true },
-  { id: '28', name: 'Spiced Iced Coffee', price: 4.20, category: 'sri-lankan-coffee', description: 'Iced coffee with cinnamon and ginger', isHot: false },
-  { id: '29', name: 'Coconut Cream Frappe', price: 5.80, category: 'sri-lankan-coffee', description: 'Blended coffee with tropical coconut cream', isHot: false },
-
-  // Sri Lankan Non-Coffee
-  { id: '30', name: 'Masala Chai', price: 4.00, category: 'sri-lankan-non-coffee', description: 'Spicy tea latte with ginger, cardamom, and spices', isHot: true },
-  { id: '31', name: 'Iced Butterfly Pea Flower Tea', price: 4.50, category: 'sri-lankan-non-coffee', description: 'Vibrant blue tea that changes color with lime', isHot: false },
-  { id: '32', name: 'Ginger Tea (Inguru Kahata)', price: 3.20, category: 'sri-lankan-non-coffee', description: 'Invigorating tea with fresh ginger', isHot: true },
-  { id: '33', name: 'Passion Fruit & Mint Cooler', price: 4.80, category: 'sri-lankan-non-coffee', description: 'Refreshing drink with local passion fruit and mint', isHot: false },
-  { id: '34', name: 'Watalappan Milkshake', price: 5.50, category: 'sri-lankan-non-coffee', description: 'Unique milkshake inspired by Sri Lankan dessert', isHot: false },
-
-  // Sri Lankan Food
-  { id: '35', name: 'Pol Sambol & Cheese Toastie', price: 4.50, category: 'sri-lankan-food', description: 'Grilled sandwich with coconut sambol and cheese' },
-  { id: '36', name: 'Kochchi Chicken Puff', price: 4.00, category: 'sri-lankan-food', description: 'Flaky pastry with spicy chicken and kochchi chilies' },
-  { id: '37', name: 'Seeni Sambol Bun', price: 3.80, category: 'sri-lankan-food', description: 'Soft bun with caramelized onion relish' },
-  { id: '38', name: 'Fish Patties', price: 4.20, category: 'sri-lankan-food', description: 'Deep-fried pastries with spiced fish and potato' },
-  { id: '39', name: 'Kiri Pani Cheesecake', price: 5.00, category: 'sri-lankan-food', description: 'Cheesecake with buffalo curd and kithul treacle' },
-  { id: '40', name: 'Love Cake Slice', price: 4.50, category: 'sri-lankan-food', description: 'Traditional cake with semolina, cashews, and spices' },
-  { id: '41', name: 'Banana Fritters', price: 3.50, category: 'sri-lankan-food', description: 'Golden fried banana slices with kithul treacle' },
-];
+import { useMenu, MenuItem } from "@/hooks/useMenu";
+import { useOrder } from "@/hooks/useOrder";
+import { toast } from "@/hooks/use-toast";
 
 export const MenuPage = () => {
   const [showChat, setShowChat] = useState(false);
-  const [cart, setCart] = useState<{[key: string]: number}>({});
   const [wishlist, setWishlist] = useState<Set<string>>(new Set());
   const [activeTab, setActiveTab] = useState("coffee");
-  const { toast } = useToast();
 
-  const addToCart = (item: MenuItem) => {
-    setCart(prev => ({
-      ...prev,
-      [item.id]: (prev[item.id] || 0) + 1
-    }));
-    toast({
-      title: "Added to cart",
-      description: `${item.name} added to your cart`,
-    });
-  };
+  // Use real menu and order hooks
+  const { 
+    items: menuItems, 
+    categories, 
+    isLoading: menuLoading, 
+    error: menuError, 
+    refreshMenu,
+    getItemsByCategory 
+  } = useMenu();
 
-  const removeFromCart = (itemId: string) => {
-    setCart(prev => {
-      const updated = { ...prev };
-      if (updated[itemId] > 1) {
-        updated[itemId] -= 1;
-      } else {
-        delete updated[itemId];
-      }
-      return updated;
-    });
-  };
+  const {
+    cart,
+    isLoading: orderLoading,
+    addToCart,
+    removeFromCart,
+    updateCartItem,
+    clearCart,
+    createOrder,
+    calculateTotals
+  } = useOrder();
+
+  // Convert cart to lookup for quantities
+  const cartQuantities = cart.reduce((acc, item) => {
+    acc[item.menuItemId] = (acc[item.menuItemId] || 0) + item.quantity;
+    return acc;
+  }, {} as Record<string, number>);
 
   const toggleWishlist = (itemId: string) => {
     setWishlist(prev => {
@@ -121,19 +63,58 @@ export const MenuPage = () => {
     });
   };
 
+  const handleAddToCart = (item: MenuItem) => {
+    addToCart(item, 1);
+  };
+
+  const handleRemoveFromCart = (item: MenuItem) => {
+    const cartItem = cart.find(ci => ci.menuItemId === item.id);
+    if (cartItem) {
+      if (cartItem.quantity > 1) {
+        updateCartItem(cartItem.id, cartItem.quantity - 1);
+      } else {
+        removeFromCart(cartItem.id);
+      }
+    }
+  };
+
   const getTotalPrice = () => {
-    return Object.entries(cart).reduce((total, [itemId, quantity]) => {
-      const item = menuItems.find(i => i.id === itemId);
-      return total + (item?.price || 0) * quantity;
-    }, 0);
+    const { total } = calculateTotals();
+    return total;
   };
 
   const getTotalItems = () => {
-    return Object.values(cart).reduce((total, quantity) => total + quantity, 0);
+    return cart.reduce((total, item) => total + item.quantity, 0);
   };
 
   const getFilteredItems = (categories: string[]) => {
     return menuItems.filter(item => categories.includes(item.category));
+  };
+
+  const handleCheckout = async () => {
+    if (cart.length === 0) {
+      toast({
+        title: "Cart is empty",
+        description: "Add items to cart before checking out",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      const order = await createOrder();
+      if (order) {
+        // Navigate to payment or confirmation
+        toast({
+          title: "Order created",
+          description: `Order #${order.id} created successfully`,
+        });
+        // Here you could redirect to payment page
+        // window.location.href = `/payment/${order.id}`;
+      }
+    } catch (error) {
+      console.error('Checkout failed:', error);
+    }
   };
 
   if (showChat) {
@@ -151,6 +132,9 @@ export const MenuPage = () => {
               <h1 className="text-2xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
                 BrewMind Menu
               </h1>
+              {menuLoading && (
+                <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+              )}
             </div>
             
             <div className="flex items-center gap-4">
@@ -162,9 +146,24 @@ export const MenuPage = () => {
                 <MessageCircle className="mr-2 h-4 w-4" />
                 Chat with AI
               </Button>
+
+              {menuError && (
+                <Button
+                  variant="outline"
+                  onClick={refreshMenu}
+                  className="border-orange-500/20 text-orange-600"
+                >
+                  <RefreshCw className="mr-2 h-4 w-4" />
+                  Retry
+                </Button>
+              )}
               
               <div className="relative">
-                <Button variant="outline" className="border-primary/20">
+                <Button 
+                  variant="outline" 
+                  className="border-primary/20"
+                  disabled={orderLoading}
+                >
                   <ShoppingCart className="mr-2 h-4 w-4" />
                   Cart ({getTotalItems()})
                 </Button>
@@ -180,30 +179,54 @@ export const MenuPage = () => {
       </header>
 
       <div className="container mx-auto px-6 py-8">
+        {menuError && (
+          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+            <p className="text-red-800">
+              Failed to load menu: {menuError}. Using offline menu.
+            </p>
+          </div>
+        )}
+
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="grid w-full grid-cols-6 mb-8">
             <TabsTrigger value="coffee">Coffee</TabsTrigger>
             <TabsTrigger value="non-coffee">Tea & More</TabsTrigger>
             <TabsTrigger value="food">Food</TabsTrigger>
             <TabsTrigger value="sri-lankan">Sri Lankan Specials</TabsTrigger>
-            <TabsTrigger value="cart">Cart</TabsTrigger>
+            <TabsTrigger value="cart">Cart ({getTotalItems()})</TabsTrigger>
             <TabsTrigger value="wishlist">Wishlist</TabsTrigger>
           </TabsList>
 
           <TabsContent value="coffee" className="space-y-6">
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {getFilteredItems(['coffee']).map((item) => (
-                <MenuItemCard 
-                  key={item.id} 
-                  item={item} 
-                  cartQuantity={cart[item.id] || 0}
-                  isWishlisted={wishlist.has(item.id)}
-                  onAddToCart={() => addToCart(item)}
-                  onRemoveFromCart={() => removeFromCart(item.id)}
-                  onToggleWishlist={() => toggleWishlist(item.id)}
-                />
-              ))}
-            </div>
+            {menuLoading ? (
+              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {[...Array(6)].map((_, i) => (
+                  <Card key={i} className="animate-pulse">
+                    <CardContent className="p-6">
+                      <div className="h-4 bg-gray-200 rounded mb-4"></div>
+                      <div className="h-20 bg-gray-100 rounded mb-4"></div>
+                      <div className="h-6 bg-gray-200 rounded mb-2"></div>
+                      <div className="h-10 bg-gray-100 rounded"></div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            ) : (
+              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {getFilteredItems(['coffee']).map((item) => (
+                  <MenuItemCard 
+                    key={item.id} 
+                    item={item} 
+                    cartQuantity={cartQuantities[item.id] || 0}
+                    isWishlisted={wishlist.has(item.id)}
+                    onAddToCart={() => handleAddToCart(item)}
+                    onRemoveFromCart={() => handleRemoveFromCart(item)}
+                    onToggleWishlist={() => toggleWishlist(item.id)}
+                    isLoading={orderLoading}
+                  />
+                ))}
+              </div>
+            )}
           </TabsContent>
 
           <TabsContent value="non-coffee" className="space-y-6">
@@ -212,11 +235,12 @@ export const MenuPage = () => {
                 <MenuItemCard 
                   key={item.id} 
                   item={item} 
-                  cartQuantity={cart[item.id] || 0}
+                  cartQuantity={cartQuantities[item.id] || 0}
                   isWishlisted={wishlist.has(item.id)}
-                  onAddToCart={() => addToCart(item)}
-                  onRemoveFromCart={() => removeFromCart(item.id)}
+                  onAddToCart={() => handleAddToCart(item)}
+                  onRemoveFromCart={() => handleRemoveFromCart(item)}
                   onToggleWishlist={() => toggleWishlist(item.id)}
+                  isLoading={orderLoading}
                 />
               ))}
             </div>
@@ -228,11 +252,12 @@ export const MenuPage = () => {
                 <MenuItemCard 
                   key={item.id} 
                   item={item} 
-                  cartQuantity={cart[item.id] || 0}
+                  cartQuantity={cartQuantities[item.id] || 0}
                   isWishlisted={wishlist.has(item.id)}
-                  onAddToCart={() => addToCart(item)}
-                  onRemoveFromCart={() => removeFromCart(item.id)}
+                  onAddToCart={() => handleAddToCart(item)}
+                  onRemoveFromCart={() => handleRemoveFromCart(item)}
                   onToggleWishlist={() => toggleWishlist(item.id)}
+                  isLoading={orderLoading}
                 />
               ))}
             </div>
@@ -247,11 +272,12 @@ export const MenuPage = () => {
                     <MenuItemCard 
                       key={item.id} 
                       item={item} 
-                      cartQuantity={cart[item.id] || 0}
+                      cartQuantity={cartQuantities[item.id] || 0}
                       isWishlisted={wishlist.has(item.id)}
-                      onAddToCart={() => addToCart(item)}
-                      onRemoveFromCart={() => removeFromCart(item.id)}
+                      onAddToCart={() => handleAddToCart(item)}
+                      onRemoveFromCart={() => handleRemoveFromCart(item)}
                       onToggleWishlist={() => toggleWishlist(item.id)}
+                      isLoading={orderLoading}
                     />
                   ))}
                 </div>
@@ -264,11 +290,12 @@ export const MenuPage = () => {
                     <MenuItemCard 
                       key={item.id} 
                       item={item} 
-                      cartQuantity={cart[item.id] || 0}
+                      cartQuantity={cartQuantities[item.id] || 0}
                       isWishlisted={wishlist.has(item.id)}
-                      onAddToCart={() => addToCart(item)}
-                      onRemoveFromCart={() => removeFromCart(item.id)}
+                      onAddToCart={() => handleAddToCart(item)}
+                      onRemoveFromCart={() => handleRemoveFromCart(item)}
                       onToggleWishlist={() => toggleWishlist(item.id)}
+                      isLoading={orderLoading}
                     />
                   ))}
                 </div>
@@ -281,11 +308,12 @@ export const MenuPage = () => {
                     <MenuItemCard 
                       key={item.id} 
                       item={item} 
-                      cartQuantity={cart[item.id] || 0}
+                      cartQuantity={cartQuantities[item.id] || 0}
                       isWishlisted={wishlist.has(item.id)}
-                      onAddToCart={() => addToCart(item)}
-                      onRemoveFromCart={() => removeFromCart(item.id)}
+                      onAddToCart={() => handleAddToCart(item)}
+                      onRemoveFromCart={() => handleRemoveFromCart(item)}
                       onToggleWishlist={() => toggleWishlist(item.id)}
+                      isLoading={orderLoading}
                     />
                   ))}
                 </div>
@@ -295,54 +323,94 @@ export const MenuPage = () => {
 
           <TabsContent value="cart" className="space-y-6">
             <div className="bg-card rounded-lg p-6">
-              <h2 className="text-2xl font-bold mb-6">Your Cart</h2>
-              {Object.keys(cart).length === 0 ? (
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-2xl font-bold">Your Cart</h2>
+                {cart.length > 0 && (
+                  <Button variant="outline" onClick={clearCart} disabled={orderLoading}>
+                    Clear Cart
+                  </Button>
+                )}
+              </div>
+              
+              {cart.length === 0 ? (
                 <p className="text-muted-foreground text-center py-8">Your cart is empty</p>
               ) : (
                 <div className="space-y-4">
-                  {Object.entries(cart).map(([itemId, quantity]) => {
-                    const item = menuItems.find(i => i.id === itemId);
-                    if (!item) return null;
+                  {cart.map((cartItem) => {
+                    const menuItem = menuItems.find(mi => mi.id === cartItem.menuItemId);
+                    if (!menuItem) return null;
+                    
                     return (
-                      <div key={itemId} className="flex items-center justify-between p-4 border border-border/50 rounded-lg">
+                      <div key={cartItem.id} className="flex items-center justify-between p-4 border border-border/50 rounded-lg">
                         <div>
-                          <h3 className="font-semibold">{item.name}</h3>
-                          <p className="text-muted-foreground">${item.price.toFixed(2)} each</p>
+                          <h3 className="font-semibold">{menuItem.name}</h3>
+                          <p className="text-muted-foreground">${cartItem.price.toFixed(2)} each</p>
+                          {cartItem.customizations && (
+                            <div className="text-sm text-muted-foreground mt-1">
+                              {cartItem.customizations.size && <span>Size: {cartItem.customizations.size} </span>}
+                              {cartItem.customizations.milk && <span>Milk: {cartItem.customizations.milk}</span>}
+                            </div>
+                          )}
                         </div>
                         <div className="flex items-center gap-3">
                           <div className="flex items-center gap-2">
                             <Button
                               size="icon"
                               variant="outline"
-                              onClick={() => removeFromCart(itemId)}
+                              onClick={() => updateCartItem(cartItem.id, cartItem.quantity - 1)}
                               className="h-8 w-8"
+                              disabled={orderLoading}
                             >
                               <Minus className="h-4 w-4" />
                             </Button>
-                            <span className="w-8 text-center">{quantity}</span>
+                            <span className="w-8 text-center">{cartItem.quantity}</span>
                             <Button
                               size="icon"
                               variant="outline"
-                              onClick={() => addToCart(item)}
+                              onClick={() => updateCartItem(cartItem.id, cartItem.quantity + 1)}
                               className="h-8 w-8"
+                              disabled={orderLoading}
                             >
                               <Plus className="h-4 w-4" />
                             </Button>
                           </div>
                           <p className="font-semibold min-w-16 text-right">
-                            ${(item.price * quantity).toFixed(2)}
+                            ${(cartItem.price * cartItem.quantity).toFixed(2)}
                           </p>
                         </div>
                       </div>
                     );
                   })}
+                  
                   <div className="border-t border-border/50 pt-4">
-                    <div className="flex items-center justify-between text-xl font-bold">
-                      <span>Total:</span>
-                      <span>${getTotalPrice().toFixed(2)}</span>
+                    <div className="space-y-2">
+                      <div className="flex justify-between">
+                        <span>Subtotal:</span>
+                        <span>${calculateTotals().subtotal.toFixed(2)}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Tax:</span>
+                        <span>${calculateTotals().tax.toFixed(2)}</span>
+                      </div>
+                      <div className="flex justify-between text-xl font-bold">
+                        <span>Total:</span>
+                        <span>${calculateTotals().total.toFixed(2)}</span>
+                      </div>
                     </div>
-                    <Button className="w-full mt-4" size="lg">
-                      Proceed to Checkout
+                    <Button 
+                      className="w-full mt-4" 
+                      size="lg" 
+                      onClick={handleCheckout}
+                      disabled={orderLoading || cart.length === 0}
+                    >
+                      {orderLoading ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Processing...
+                        </>
+                      ) : (
+                        'Proceed to Checkout'
+                      )}
                     </Button>
                   </div>
                 </div>
@@ -364,11 +432,12 @@ export const MenuPage = () => {
                       <MenuItemCard 
                         key={item.id} 
                         item={item} 
-                        cartQuantity={cart[item.id] || 0}
+                        cartQuantity={cartQuantities[item.id] || 0}
                         isWishlisted={true}
-                        onAddToCart={() => addToCart(item)}
-                        onRemoveFromCart={() => removeFromCart(item.id)}
+                        onAddToCart={() => handleAddToCart(item)}
+                        onRemoveFromCart={() => handleRemoveFromCart(item)}
                         onToggleWishlist={() => toggleWishlist(item.id)}
+                        isLoading={orderLoading}
                       />
                     );
                   })}
@@ -389,6 +458,7 @@ interface MenuItemCardProps {
   onAddToCart: () => void;
   onRemoveFromCart: () => void;
   onToggleWishlist: () => void;
+  isLoading?: boolean;
 }
 
 const MenuItemCard = ({ 
@@ -397,7 +467,8 @@ const MenuItemCard = ({
   isWishlisted, 
   onAddToCart, 
   onRemoveFromCart, 
-  onToggleWishlist 
+  onToggleWishlist,
+  isLoading = false
 }: MenuItemCardProps) => {
   return (
     <Card className="hover:shadow-warm transition-all duration-300 overflow-hidden">
@@ -416,12 +487,16 @@ const MenuItemCard = ({
                 {item.isHot ? "Hot" : "Cold"}
               </Badge>
             )}
+            {item.availability && !item.availability.isAvailable && (
+              <Badge variant="destructive">Unavailable</Badge>
+            )}
           </div>
           <Button
             size="icon"
             variant="ghost"
             onClick={onToggleWishlist}
             className="h-8 w-8"
+            disabled={isLoading}
           >
             <Heart 
               className={`h-4 w-4 ${
@@ -437,9 +512,17 @@ const MenuItemCard = ({
             {item.description}
           </p>
         )}
-        <p className="text-2xl font-bold text-primary mb-4">
-          ${item.price.toFixed(2)}
-        </p>
+        
+        <div className="flex items-center justify-between mb-4">
+          <p className="text-2xl font-bold text-primary">
+            ${item.price.toFixed(2)}
+          </p>
+          {item.availability?.estimatedTime && (
+            <Badge variant="outline" className="text-xs">
+              ~{item.availability.estimatedTime}min
+            </Badge>
+          )}
+        </div>
         
         <div className="flex items-center gap-2">
           {cartQuantity > 0 ? (
@@ -449,6 +532,7 @@ const MenuItemCard = ({
                 variant="outline"
                 onClick={onRemoveFromCart}
                 className="h-8 w-8 p-0"
+                disabled={isLoading}
               >
                 <Minus className="h-4 w-4" />
               </Button>
@@ -457,13 +541,22 @@ const MenuItemCard = ({
                 size="sm"
                 onClick={onAddToCart}
                 className="h-8 w-8 p-0"
+                disabled={isLoading || (item.availability && !item.availability.isAvailable)}
               >
                 <Plus className="h-4 w-4" />
               </Button>
             </div>
           ) : (
-            <Button onClick={onAddToCart} className="flex-1">
-              <Plus className="mr-2 h-4 w-4" />
+            <Button 
+              onClick={onAddToCart} 
+              className="flex-1"
+              disabled={isLoading || (item.availability && !item.availability.isAvailable)}
+            >
+              {isLoading ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Plus className="mr-2 h-4 w-4" />
+              )}
               Add to Cart
             </Button>
           )}

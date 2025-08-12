@@ -1,25 +1,22 @@
-import { useState, useRef, useEffect } from "react";
+// Replace the existing src/components/ChatInterface.tsx with this updated version
+
+import { useState, useRef, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Send, Coffee, Bot, User, Calendar, ShoppingCart, Truck } from "lucide-react";
-
-interface Message {
-  id: string;
-  role: "user" | "assistant";
-  content: string;
-  timestamp: Date;
-  type?: "text" | "suggestion" | "appointment" | "order";
-}
+import { ArrowLeft, Send, Coffee, Bot, User, Calendar, ShoppingCart, Truck, AlertCircle, Wifi, WifiOff } from "lucide-react";
+import { WebSocketManager, ChatMessage } from "@/services/websocket";
+import { useProjectKnowledge } from "@/hooks/useProjectKnowledge";
+import { toast } from "@/hooks/use-toast";
 
 interface ChatInterfaceProps {
   onBack: () => void;
 }
 
 export const ChatInterface = ({ onBack }: ChatInterfaceProps) => {
-  const [messages, setMessages] = useState<Message[]>([
+  const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: "1",
       role: "assistant",
@@ -28,14 +25,20 @@ export const ChatInterface = ({ onBack }: ChatInterfaceProps) => {
       type: "text"
     }
   ]);
+  
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
+  const [connectionStatus, setConnectionStatus] = useState<'connecting' | 'connected' | 'disconnected' | 'error'>('connecting');
+  const [sessionId] = useState(() => `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`);
+  
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const wsManagerRef = useRef<WebSocketManager | null>(null);
+  const { search: searchProjectKnowledge, isLoading: isSearching } = useProjectKnowledge();
 
   const quickSuggestions = [
     "Suggest coffee for rainy weather",
-    "Book a coffee meeting",
+    "Book a coffee meeting", 
     "What's my usual order?",
     "I need a therapy session",
     "Show delivery options"
@@ -54,73 +57,144 @@ export const ChatInterface = ({ onBack }: ChatInterfaceProps) => {
     }
   };
 
-  const simulateAIResponse = (userMessage: string): string => {
-    const lowerMessage = userMessage.toLowerCase();
-    
-    if (lowerMessage.includes("weather") || lowerMessage.includes("rainy") || lowerMessage.includes("sunny")) {
-      return "Based on today's weather, I'd recommend a warm Cappuccino Supreme with extra foam! The rich, creamy texture is perfect for a cozy feeling. Would you like me to add this to your order? ☕🌧️";
-    }
-    
-    if (lowerMessage.includes("appointment") || lowerMessage.includes("meeting") || lowerMessage.includes("book")) {
-      return "I'd love to help you book a coffee appointment! Are you looking for a casual coffee meeting or perhaps a therapeutic session? I have availability tomorrow at 2 PM, 4 PM, or Friday at 10 AM. Which works better for you? 📅";
-    }
-    
-    if (lowerMessage.includes("usual") || lowerMessage.includes("order") || lowerMessage.includes("remember")) {
-      return "I remember you love our Iced Vanilla Latte with an extra shot! You ordered it last Tuesday and mentioned how it perfectly balanced sweetness with strength. Would you like the same today, or shall we try something new? 💭";
-    }
-    
-    if (lowerMessage.includes("therapy") || lowerMessage.includes("stress") || lowerMessage.includes("talk")) {
-      return "I'm here to listen. Sometimes the best therapy happens over a warm cup of coffee. What's on your mind today? While we chat, may I suggest our calming Chamomile Coffee Blend? It's known for its soothing properties. 🤗";
-    }
-    
-    if (lowerMessage.includes("delivery") || lowerMessage.includes("deliver")) {
-      return "We offer several delivery options! 🚚 Standard delivery (30-45 mins) is free over $15, Express delivery (15-20 mins) for $3.99, or you can schedule delivery for later today. What works best for your schedule?";
-    }
-    
-    if (lowerMessage.includes("payment") || lowerMessage.includes("pay") || lowerMessage.includes("checkout")) {
-      return "Perfect! I'll direct you to our secure payment portal. We accept all major cards, Apple Pay, Google Pay, and even coffee subscription credits. Your order total comes to $12.50. Ready to proceed? 💳";
+  // Initialize WebSocket connection
+  useEffect(() => {
+    const initializeWebSocket = async () => {
+      try {
+        setConnectionStatus('connecting');
+        const wsManager = new WebSocketManager(sessionId);
+        wsManagerRef.current = wsManager;
+
+        // Set up message handler
+        wsManager.onMessage((message: ChatMessage) => {
+          setMessages(prev => [...prev, message]);
+          setIsTyping(false);
+        });
+
+        // Set up status handler
+        wsManager.onStatus((status) => {
+          switch (status.type) {
+            case 'connected':
+              setConnectionStatus('connected');
+              toast({
+                title: "Connected",
+                description: "Chat connection established successfully!",
+              });
+              break;
+            case 'disconnected':
+              setConnectionStatus('disconnected');
+              toast({
+                title: "Disconnected",
+                description: "Connection lost. Attempting to reconnect...",
+                variant: "destructive",
+              });
+              break;
+            case 'typing':
+              setIsTyping(status.data.typing || false);
+              break;
+            case 'queue_update':
+              // Handle queue updates
+              toast({
+                title: "Queue Update",
+                description: `Your position: ${status.data.position}`,
+              });
+              break;
+            case 'order_update':
+              // Handle order updates
+              toast({
+                title: "Order Update",
+                description: `Order status: ${status.data.status}`,
+              });
+              break;
+          }
+        });
+
+        // Set up error handler
+        wsManager.onError((error) => {
+          setConnectionStatus('error');
+          console.error('WebSocket error:', error);
+          toast({
+            title: "Connection Error",
+            description: error,
+            variant: "destructive",
+          });
+        });
+
+        // Connect to WebSocket
+        await wsManager.connect();
+        
+      } catch (error) {
+        setConnectionStatus('error');
+        console.error('Failed to initialize WebSocket:', error);
+        toast({
+          title: "Connection Failed",
+          description: "Unable to connect to chat service. Please try again.",
+          variant: "destructive",
+        });
+      }
+    };
+
+    initializeWebSocket();
+
+    // Cleanup on unmount
+    return () => {
+      if (wsManagerRef.current) {
+        wsManagerRef.current.disconnect();
+      }
+    };
+  }, [sessionId]);
+
+  const handleSend = useCallback(async () => {
+    if (!input.trim() || !wsManagerRef.current?.isConnected()) {
+      if (!wsManagerRef.current?.isConnected()) {
+        toast({
+          title: "Not Connected",
+          description: "Please wait for connection to be established.",
+          variant: "destructive",
+        });
+      }
+      return;
     }
 
-    // Default responses for general conversation
-    const responses = [
-      "That sounds interesting! How can I help you with your coffee experience today? ☕",
-      "I'm here to make your coffee journey perfect. What type of flavor profile are you in the mood for?",
-      "Great! I love helping coffee enthusiasts. Are you looking for something energizing or more relaxing?",
-      "Tell me more! I can suggest the perfect drink or help with anything else you need."
-    ];
-    
-    return responses[Math.floor(Math.random() * responses.length)];
-  };
-
-  const handleSend = () => {
-    if (!input.trim()) return;
-
-    const userMessage: Message = {
+    const userMessage: ChatMessage = {
       id: Date.now().toString(),
       role: "user",
-      content: input,
+      content: input.trim(),
       timestamp: new Date(),
       type: "text"
     };
 
+    // Add user message to UI immediately
     setMessages(prev => [...prev, userMessage]);
+    const messageContent = input.trim();
     setInput("");
     setIsTyping(true);
 
-    // Simulate AI response delay
-    setTimeout(() => {
-      const aiResponse: Message = {
-        id: (Date.now() + 1).toString(),
-        role: "assistant",
-        content: simulateAIResponse(input),
-        timestamp: new Date(),
-        type: "text"
-      };
+    try {
+      // Send message through WebSocket
+      wsManagerRef.current.sendMessage(messageContent);
       
-      setMessages(prev => [...prev, aiResponse]);
+      // Also try project knowledge search for enhanced responses
+      if (messageContent.includes('knowledge') || messageContent.includes('help') || messageContent.includes('info')) {
+        try {
+          const knowledgeResponse = await searchProjectKnowledge(messageContent);
+          // The WebSocket will handle the AI response, but we could use knowledge for context
+          console.log('Knowledge search result:', knowledgeResponse);
+        } catch (error) {
+          console.warn('Knowledge search failed:', error);
+        }
+      }
+
+    } catch (error) {
       setIsTyping(false);
-    }, 1000 + Math.random() * 2000);
-  };
+      console.error('Failed to send message:', error);
+      toast({
+        title: "Send Failed",
+        description: "Failed to send message. Please try again.",
+        variant: "destructive",
+      });
+    }
+  }, [input, searchProjectKnowledge]);
 
   const handleSuggestionClick = (suggestion: string) => {
     setInput(suggestion);
@@ -128,8 +202,39 @@ export const ChatInterface = ({ onBack }: ChatInterfaceProps) => {
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter") {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
       handleSend();
+    }
+  };
+
+  const getConnectionIcon = () => {
+    switch (connectionStatus) {
+      case 'connected':
+        return <Wifi className="h-4 w-4 text-green-500" />;
+      case 'connecting':
+        return <Wifi className="h-4 w-4 text-yellow-500 animate-pulse" />;
+      case 'disconnected':
+        return <WifiOff className="h-4 w-4 text-orange-500" />;
+      case 'error':
+        return <AlertCircle className="h-4 w-4 text-red-500" />;
+      default:
+        return <WifiOff className="h-4 w-4 text-gray-500" />;
+    }
+  };
+
+  const getConnectionText = () => {
+    switch (connectionStatus) {
+      case 'connected':
+        return 'Connected';
+      case 'connecting':
+        return 'Connecting...';
+      case 'disconnected':
+        return 'Reconnecting...';
+      case 'error':
+        return 'Connection Error';
+      default:
+        return 'Disconnected';
     }
   };
 
@@ -149,7 +254,13 @@ export const ChatInterface = ({ onBack }: ChatInterfaceProps) => {
               </div>
               <div>
                 <h1 className="font-semibold">AI Barista</h1>
-                <p className="text-sm text-muted-foreground">Your personal coffee assistant</p>
+                <div className="flex items-center gap-2">
+                  <p className="text-sm text-muted-foreground">Your personal coffee assistant</p>
+                  <div className="flex items-center gap-1">
+                    {getConnectionIcon()}
+                    <span className="text-xs text-muted-foreground">{getConnectionText()}</span>
+                  </div>
+                </div>
               </div>
             </div>
             <div className="ml-auto flex gap-2">
@@ -189,6 +300,7 @@ export const ChatInterface = ({ onBack }: ChatInterfaceProps) => {
                     size="sm"
                     className="text-xs hover:bg-primary/5 border-border/50"
                     onClick={() => handleSuggestionClick(suggestion)}
+                    disabled={connectionStatus !== 'connected'}
                   >
                     {suggestion}
                   </Button>
@@ -221,6 +333,23 @@ export const ChatInterface = ({ onBack }: ChatInterfaceProps) => {
                         }`}
                       >
                         <p className="text-sm leading-relaxed">{message.content}</p>
+                        
+                        {/* Show metadata for special message types */}
+                        {message.metadata && (
+                          <div className="mt-2 space-y-1">
+                            {message.metadata.emotion && (
+                              <Badge variant="outline" className="text-xs">
+                                Emotion: {message.metadata.emotion}
+                              </Badge>
+                            )}
+                            {message.metadata.queue_position && (
+                              <Badge variant="outline" className="text-xs">
+                                Queue Position: {message.metadata.queue_position}
+                              </Badge>
+                            )}
+                          </div>
+                        )}
+                        
                         <p className="text-xs opacity-70 mt-2">
                           {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                         </p>
@@ -234,7 +363,7 @@ export const ChatInterface = ({ onBack }: ChatInterfaceProps) => {
                     </div>
                   ))}
                   
-                  {isTyping && (
+                  {(isTyping || isSearching) && (
                     <div className="flex gap-3">
                       <div className="w-8 h-8 bg-gradient-to-br from-primary to-accent rounded-full flex items-center justify-center">
                         <Bot className="h-4 w-4 text-primary-foreground" />
@@ -262,12 +391,17 @@ export const ChatInterface = ({ onBack }: ChatInterfaceProps) => {
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   onKeyPress={handleKeyPress}
-                  placeholder="Ask about coffee, book a meeting, or just chat..."
+                  placeholder={
+                    connectionStatus === 'connected' 
+                      ? "Ask about coffee, book a meeting, or just chat..."
+                      : "Connecting to chat service..."
+                  }
                   className="flex-1 border-border/50 focus:ring-primary/20"
+                  disabled={connectionStatus !== 'connected'}
                 />
                 <Button 
                   onClick={handleSend} 
-                  disabled={!input.trim() || isTyping}
+                  disabled={!input.trim() || connectionStatus !== 'connected'}
                   className="px-6"
                 >
                   <Send className="h-4 w-4" />
