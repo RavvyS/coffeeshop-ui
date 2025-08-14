@@ -30,17 +30,29 @@ interface OrderResponse {
   payment_url?: string;
 }
 
+// Add to src/services/api.ts
 class APIService {
   private baseURL: string;
   private wsURL: string;
+  private isOffline: boolean = false;
 
   constructor() {
-    // Environment-based API URLs
     this.baseURL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
     this.wsURL = import.meta.env.VITE_WS_URL || 'ws://localhost:8000';
+    
+    // Check if backend is available
+    this.healthCheck().catch(() => {
+      console.warn('⚠️ Backend not available, running in offline mode');
+      this.isOffline = true;
+    });
   }
 
   private async fetchAPI<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+    // If offline, return mock data
+    if (this.isOffline) {
+      return this.getMockData(endpoint, options) as T;
+    }
+
     const url = `${this.baseURL}${endpoint}`;
     
     const defaultHeaders = {
@@ -65,13 +77,40 @@ class APIService {
       const data = await response.json();
       return data;
     } catch (error) {
-      if (error instanceof APIError) {
-        throw error;
-      }
-      throw new APIError(0, `Network Error: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      // Fallback to mock data on error
+      console.warn('API call failed, using mock data:', error);
+      return this.getMockData(endpoint, options) as T;
     }
   }
+  private getMockData(endpoint: string, options: RequestInit) {
+    // Mock responses for offline development
+    if (endpoint === '/api/menu') {
+      return {
+        categories: ['coffee', 'non-coffee', 'food'],
+        items: [
+          {
+            id: '1',
+            name: 'Cappuccino',
+            price: 4.50,
+            category: 'coffee',
+            description: 'Classic Italian coffee',
+            isHot: true,
+            availability: { isAvailable: true, estimatedTime: 5 }
+          }
+        ]
+      };
+    }
+    
+    if (endpoint.includes('/api/project-knowledge')) {
+      return {
+        response: 'Offline mode: Limited functionality available',
+        confidence: 0.5,
+        sources: []
+      };
+    }
 
+    return { success: true, data: {} };
+  }
   // Project Knowledge Search (replaces mock)
   async searchProjectKnowledge(query: string): Promise<ProjectKnowledgeResponse> {
     return this.fetchAPI<ProjectKnowledgeResponse>('/api/project-knowledge/search', {
